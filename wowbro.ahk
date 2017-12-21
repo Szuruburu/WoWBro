@@ -63,7 +63,7 @@ return
 ; *** Investigate why the alt+mbutton /useitem/ function refuses to work
 
 ; Restart app
-+Esc::
+!+Esc::
 reload
 return
 
@@ -155,14 +155,17 @@ return
 
 RButton up::
 LockdownMB_OFF("Right")
+/*
 if (RMB_locked == false) && (LMB_locked == false) {
 	Sleep, 1000
 	SendInput, %DeselectMacro_Key%
 }
+*/
 return
 
 UseItem:
-if (RMB_locked == true) {
+; add || LMB locked == true
+if (RMB_locked == true) || (LMB_locked == true) {
 	BlockInput, MouseMove
 	LockdownMB_OFF("Right")
 	MouseGetPos, initX, initY
@@ -198,6 +201,7 @@ ToggleLMB:
 return
 
 ToggleFlyingMode:
+;Settimer, DontMove, 50
 LockdownMB_OFF("Left")
 LockdownMB_OFF("Right")
 SendInput, %MountUp_Key%
