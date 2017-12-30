@@ -13,9 +13,6 @@
 ;#Warn All
 #NoEnv
 #SingleInstance, force
-#MaxThreadsBuffer, On
-#MaxHotkeysPerInterval, 500 ; Prevents hotkey limit reached warning
-#MaxThreadsPerHotkey, 4
 #InstallMouseHook
 #Persistent
 SetControlDelay -1
@@ -38,6 +35,10 @@ global LMB_locked := false
 global Mounted := false
 
 global move := false
+global cs_shown := false
+
+; User Settings
+global SettingsMoveCursor := true
 
 Hotkey, IfWinActive, ahk_class GxWindowClass
 Hotkey, %MountUp_Key%, ToggleFlyingMode
@@ -45,7 +46,9 @@ Hotkey, !LButton, ToggleLMB
 Hotkey, !LButton, off
 ;Hotkey, a, TurnLeft_RidingMode
 
+Send, {%ModKey% up}
 ClOff()
+GoSub, DestroysAtStartup
 return
 
 ;==============  THE END OF...
@@ -55,6 +58,15 @@ return
 ;==============----------------------------------------------------------------------------==============;
 ;==============----------------------------------------------------------------------------==============;
 
+; Libraries
+#Include lib/guifunc.ahk
+#Include lib/tip.ahk
+#Include lib/destroys.ahk
+
+DestroysAtStartup:
+GoSub, CrossHairDestroy
+return
+
 ; REMARKS
 ; *** AlywaysOnTop & NoActivate GUI option?
 ; 	* to change cursor placing after changing a spec e.g.
@@ -63,6 +75,11 @@ return
 ; *** Investigate why the alt+mbutton /useitem/ function refuses to work
 
 ; Restart app
+
+!F1::
+SettingsMoveCursor := (SettingsMoveCursor == true) ? false : true
+return
+
 !+Esc::
 reload
 return
@@ -73,8 +90,113 @@ return
 ^+Esc::return
 LWin::return
 
+; WOW window class
 #IfWinActive, ahk_class GxWindowClass
 	
+ShowCrosshair:
+csC := "ffff26"
+CrosshairGUIParams := "-SysMenu -Caption +LastFound +ToolWindow +AlwaysOnTop"
+Gui, CS_Horizontal: %CrosshairGUIParams%
+CSH_hwnd := WinExist()
+Gui, CS_Vertical: %CrosshairGUIParams%
+CSV_hwnd := WinExist()
+WinSet, Transparent, 0, ahk_id %CSH_hwnd%
+WinSet, Transparent, 0, ahk_id %CSV_hwnd%
+WinSet, ExStyle, +0x20, ahk_id %CSH_hwnd%
+WinSet, ExStyle, +0x20, ahk_id %CSV_hwnd%
+Gui, CS_Horizontal: Color, % "0x" csC
+Gui, CS_Vertical: Color, % "0x" csC
+cshW := 12
+csvW := 2
+cshH := csvW
+csvH := cshW
+cshX := (A_ScreenWidth/2)-(cshW/2)
+csvX := (A_ScreenWidth/2)-(csvW/2)
+cshY := (A_ScreenHeight/2)-(cshH/2)
+csvY := (A_ScreenHeight/2)-(csvH/2)
+Gui, CS_Horizontal: Show, w%cshW% h%cshH% x%cshX% y%cshY% NoActivate
+Gui, CS_Vertical: Show, w%csvW% h%csvH% x%csvX% y%csvY% NoActivate
+WinFade("ahk_id " CSH_hwnd,60,30)
+WinFade("ahk_id " CSV_hwnd,60,30)
+return
+
+; pn = portrait number
+; xy = x or y
+GetMouseCoords(pn,xy) {
+	MouseGetPos, %pn%pX, %pn%pY
+	if (xy == "x")
+		return %pn%pX
+	else if (xy == "y")
+		return %pn%pY
+}
+
+SetMouseCoords(pn) {
+	global NOT_hwnd
+	if WinExist("ahk_id " NOT_hwnd)
+		GoSub, NotifyDestroy
+	nt := "Portrait " pn " hotkey position [x,y]: " %pn%pX ", " %pn%pY
+	Notify(nt)
+}
+
+^+!1::
+global 1pX := GetMouseCoords("1", "x")
+global 1pY := GetMouseCoords("1", "y")
+SetMouseCoords("1")
+return
+
+^+!2::
+global 2pX := GetMouseCoords("2", "x")
+global 2pY := GetMouseCoords("2", "y")
+SetMouseCoords("2")
+return
+
+^+!3::
+global 3pX := GetMouseCoords("3", "x")
+global 3pY := GetMouseCoords("3", "y")
+SetMouseCoords("3")
+return
+
+^+!4::
+global 4pX := GetMouseCoords("4", "x")
+global 4pY := GetMouseCoords("4", "y")
+SetMouseCoords("4")
+return
+
+^+!5::
+global 5pX := GetMouseCoords("5", "x")
+global 5pY := GetMouseCoords("5", "y")
+SetMouseCoords("")
+return
+
+RestoreMouseCoords(pn) {
+	pX := %pn%pX
+	BlockInput, MouseMove
+	LockdownMB_OFF("Left")
+	LockdownMB_OFF("Right")
+	MouseMove, %pn%pX, %pn%pY
+	BlockInput, MouseMoveOff
+}
+
+!1::
+RestoreMouseCoords("1")
+return
+
+!2::
+RestoreMouseCoords("2")
+return
+
+!3::
+RestoreMouseCoords("3")
+return
+
+!4::
+RestoreMouseCoords("4")
+return
+
+!5::
+RestoreMouseCoords("5")
+return
+
 ClOff() {
 	SetCapsLockState, AlwaysOff
 }
@@ -96,7 +218,10 @@ if (LMB_locked == true) {
 Sleep, % RMB_LMB_SwitchInterval
 ; LockDown Mouse Button function:
 ; params: LockDownMB([which button: "Right", "Left", "Middle"], [where should be cursor moved?: "center", "dontmove"])
-LockdownMB("Right")
+if (SettingsMoveCursor == true)
+	LockdownMB("Right")
+else
+	LockdownMB("Right","dontmove")
 return
 
 LockdownMB(which, where := "center") {
@@ -116,7 +241,8 @@ LockdownMB(which, where := "center") {
 		%butpref%_my := posY
 		BlockInput, MouseMove
 		MouseMove, %butpref%_mx, %butpref%_my
-		BlockInput, MouseMoveOff
+		if (which == "Right")
+			GoSub, ShowCrosshair
 		move := false
 		
 	} else {
@@ -125,6 +251,7 @@ LockdownMB(which, where := "center") {
 	Click, Down, %which%
 	%butpref%locked := true
 	%butpref%_up := false
+	BlockInput, MouseMoveOff
 }
 
 LockdownMB_OFF(which) {
@@ -135,8 +262,10 @@ LockdownMB_OFF(which) {
 	: "error: incorrect button"
 	
 	Click, Up, %which%
-	if (%butpref%locked == true)
+	if (%butpref%locked == true) {
 		%butpref%locked := false
+		GoSub, CrossHairDestroy
+	}
 }
 
 LButton::
@@ -155,46 +284,39 @@ return
 
 RButton up::
 LockdownMB_OFF("Right")
-/*
-if (RMB_locked == false) && (LMB_locked == false) {
-	Sleep, 1000
-	SendInput, %DeselectMacro_Key%
-}
-*/
 return
 
-UseItem:
-; add || LMB locked == true
+MButton::
 if (RMB_locked == true) || (LMB_locked == true) {
-	BlockInput, MouseMove
-	LockdownMB_OFF("Right")
-	MouseGetPos, initX, initY
-	CposX := A_ScreenWidth / 2
-	CposY := A_ScreenHeight / 2
-	MouseMove, CposX, CposY	
-	Sleep, % UseButton_Interval
-	SendInput, {RButton}
-	Sleep, % UseButton_Interval
-	if (move == false) {
-		MouseMove, %initX%, %initY%
-		LockdownMB("Right","dontmove")
-	} else {
-		LockdownMB("Right")
-	}
-	BlockInput, MouseMoveOff
-	Sleep, 500
-	SendInput, %DeselectMacro_Key%
+	GoSub, UseItem
 } else {
 	Click, Down, Middle
 }
 return
 
-MButton::
-GoSub, UseItem
-return
-
 MButton up::
 Click, Up, Middle
+return
+
+UseItem:
+BlockInput, MouseMove
+LockdownMB_OFF("Right")
+MouseGetPos, initX, initY
+CposX := A_ScreenWidth / 2
+CposY := A_ScreenHeight / 2
+MouseMove, CposX, CposY	
+Sleep, % UseButton_Interval
+SendInput, {RButton}
+Sleep, % UseButton_Interval
+if (move == false) {
+	MouseMove, %initX%, %initY%
+	LockdownMB("Right","dontmove")
+} else {
+	LockdownMB("Right")
+}
+BlockInput, MouseMoveOff
+Sleep, 500
+SendInput, %DeselectMacro_Key%
 return
 
 ToggleLMB:
@@ -217,7 +339,7 @@ LookForZ:
 GetKeyState, MountOff, %MountUp_Key%
 if (MountOff == "D") {
 	SendInput, %MountUp_Key%
-	SendInput, {%ModKey% up}
+	Send, {%ModKey% up}
 	LockdownMB_OFF("Left")
 	SetTimer, LookForZ, off
 	Mounted := false

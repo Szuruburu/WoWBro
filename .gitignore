@@ -5,6 +5,9 @@ settings.ini
 # AHK Studio backup files
 backup
 
+# project files
+__project
+
 # Temp folder
 temp
 
