@@ -5,6 +5,6 @@ Gui, Notify: Destroy
 return
 
 CrosshairDestroy:
-WinFade("ahk_id " CSV_hwnd,0,3)
-WinFade("ahk_id " CSH_hwnd,0,3)
+Gui, CS_Horizontal: Destroy
+Gui, CS_Vertical: Destroy
 return

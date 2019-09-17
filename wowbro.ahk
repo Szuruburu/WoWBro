@@ -41,7 +41,7 @@ global cs_shown := false
 global SettingsMoveCursor := true
 
 Hotkey, IfWinActive, ahk_class GxWindowClass
-Hotkey, %MountUp_Key%, ToggleFlyingMode
+;Hotkey, %MountUp_Key%, ToggleFlyingMode
 Hotkey, !LButton, ToggleLMB
 Hotkey, !LButton, off
 ;Hotkey, a, TurnLeft_RidingMode
@@ -315,7 +315,7 @@ if (move == false) {
 	LockdownMB("Right")
 }
 BlockInput, MouseMoveOff
-Sleep, 500
+Sleep, 20
 SendInput, %DeselectMacro_Key%
 return
 
