@@ -25,7 +25,7 @@ SetTitleMatchMode 2
 ;infoBox("Nice And Fluffly! ver. 1.0",480,100,,"3")
 ;SplashScreen("WorkFlo v 1.14", "Wciśnij WIN + H aby wyświetlić pomoc`nby szuruburu", 483, 103,, "2")
 global ModKey := "LAlt"
-global MountUp_Key := "z"
+global MountUp_Key := "!z"
 global DeselectMacro_Key := "^!+U"
 
 global RMB_LMB_SwitchInterval := 40
@@ -41,14 +41,16 @@ global cs_shown := false
 global SettingsMoveCursor := true
 
 Hotkey, IfWinActive, ahk_class GxWindowClass
-;Hotkey, %MountUp_Key%, ToggleFlyingMode
+Hotkey, %MountUp_Key%, ToggleFlyingMode
 Hotkey, !LButton, ToggleLMB
 Hotkey, !LButton, off
+; Hotkey, Delete, DeleteItemUnderCursor
 ;Hotkey, a, TurnLeft_RidingMode
 
 Send, {%ModKey% up}
 ClOff()
 GoSub, DestroysAtStartup
+Menu, Tray, Icon, icon.ico
 return
 
 ;==============  THE END OF...
@@ -75,7 +77,6 @@ return
 ; *** Investigate why the alt+mbutton /useitem/ function refuses to work
 
 ; Restart app
-
 !F1::
 SettingsMoveCursor := (SettingsMoveCursor == true) ? false : true
 return
@@ -85,14 +86,18 @@ reload
 return
 
 ; Some keys are blocked to prvent their accidental pressing during the game
+/*
 !Esc::return
 ^Esc::return
 ^+Esc::return
 LWin::return
+*/
 
 ; WOW window class
 #IfWinActive, ahk_class GxWindowClass
-	
+;#IfWinActive, ahk_class Turbine Device Class
+
+
 ShowCrosshair:
 csC := "ffff26"
 CrosshairGUIParams := "-SysMenu -Caption +LastFound +ToolWindow +AlwaysOnTop"
@@ -120,6 +125,25 @@ WinFade("ahk_id " CSH_hwnd,60,30)
 WinFade("ahk_id " CSV_hwnd,60,30)
 return
 
+/*
+A::
+	if (Mounted == true) {
+		if !(RMB_locked == false)
+			LockDownMB("Right")
+		SimulateLeft("A")
+	} else {
+		SimulateLeft("A")
+	}
+return
+
+SimulateLeft(TurnLeft_Key) {
+	While GetKeyState(TurnLeft_Key, "P") {
+		SendInput, {%TurnLeft_Key% down}
+	}
+	SendInput {%TurnLeft_Key% up}
+}
+*/
+
 ; pn = portrait number
 ; xy = x or y
 GetMouseCoords(pn,xy) {
@@ -137,6 +161,26 @@ SetMouseCoords(pn) {
 	nt := "Portrait " pn " hotkey position [x,y]: " %pn%pX ", " %pn%pY
 	Notify(nt)
 }
+
+DeleteItemUnderCursor:
+	MouseGetPos, iX, iY
+	mdX := A_ScreenWidth/2
+	mdY := A_ScreenHeight/2
+	Click, Down, Left
+	MouseMove, mdX,mdY
+	Click, Up, Left
+	;Click
+	Sleep, 300
+	ImageSearch, YesX, YesY, 0, 0, %A_ScreenWidth%, %A_ScreenHeight%, lib\yes.bmp
+	Sleep, 50
+	MouseMove, YesX,YesY
+	Click
+	Sleep, 10
+	Click
+	Sleep, 10
+	Click
+	MouseMove, iX,iY
+return
 
 ^+!1::
 global 1pX := GetMouseCoords("1", "x")
@@ -205,8 +249,12 @@ ClOff() {
 if (RMB_locked == true) {
 	Click, Up, Right
 	RMB_locked := false
+} else if (LMB_locked == true) {
+	Click, Up, Left
+	RMB_locked := false
+	Sleep, % RMB_LMB_SwitchInterval	
+	LockdownMB("Left")
 }
-Sleep, % RMB_LMB_SwitchInterval
 LockdownMB("Left")
 return
 
@@ -214,8 +262,13 @@ CapsLock::
 if (LMB_locked == true) {
 	Click, Up, Left
 	LMB_locked := false
+	Sleep, % RMB_LMB_SwitchInterval	
+} else if (RMB_locked == true) {
+	Click, Up, Right
+	Sleep, % RMB_LMB_SwitchInterval	
+	LockdownMB("Right")
 }
-Sleep, % RMB_LMB_SwitchInterval
+
 ; LockDown Mouse Button function:
 ; params: LockDownMB([which button: "Right", "Left", "Middle"], [where should be cursor moved?: "center", "dontmove"])
 if (SettingsMoveCursor == true)
@@ -231,7 +284,8 @@ LockdownMB(which, where := "center") {
 	: (which == "Middle") || (which == "middle") ? "MMB_"
 	: "error: incorrect button"
 	
-	SendInput, %DeselectMacro_Key%
+	if (which == "Right")
+		SendInput, %DeselectMacro_Key%
 	posX := InStr(where,"center") ? A_ScreenWidth / 2
 	: InStr(where, "dontmove") ? "asis"
 	posY := InStr(where,"center") ? A_ScreenHeight / 2
@@ -322,17 +376,33 @@ return
 ToggleLMB:
 return
 
+CheckForModKey:
+	akd := GetKeyState(ModKey)
+	if (akd == 0)
+		SendInput, {%ModKey% down}
+return
+
 ToggleFlyingMode:
-;Settimer, DontMove, 50
-LockdownMB_OFF("Left")
-LockdownMB_OFF("Right")
-SendInput, %MountUp_Key%
-LockdownMB("Left")
-Sleep, 1000
-SendInput, {%ModKey% down}
-SendInput, !{WheelDown 20}
-Mounted := true
-SetTimer, LookForZ, 12
+if (Mounted == true) {
+	SetTimer, CheckForModKey, off
+	Send, {%ModKey% up}
+	SendInput, %MountUp_Key%
+	LockdownMB_OFF("Left")
+	LockdownMB("Right")
+	Mounted := false
+	Notify("Dismount!")
+} else {
+	LockdownMB_OFF("Left")
+	LockdownMB_OFF("Right")
+	SendInput, %MountUp_Key%
+	Notify("Mount up!")
+	LockdownMB("Left")
+	Sleep, 1000
+	SendInput, {%ModKey% down}
+	;SendInput, !{WheelDown 20}
+	Mounted := true
+	SetTimer, CheckForModKey, 2000
+}
 return
 
 LookForZ:

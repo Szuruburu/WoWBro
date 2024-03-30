@@ -112,7 +112,7 @@ if : t > current, increases current transparency [i+]
 if : t < current, decreases current transparency [i-]
 */
 
-WinFade(w_title:="", transparency:=128, increment:=100, ex_enable:=false, delay:=1,ex_off:=false) {
+WinFade(w_title:="", transparency:=128, increment:=255, ex_enable:=false, delay:=1,ex_off:=false) {
 	;Tip(A_ThisHotkey)
 	
 	if (ex_off == false) {
