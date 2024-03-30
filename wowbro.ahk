@@ -28,8 +28,8 @@ global ModKey := "LAlt"
 global MountUp_Key := "!z"
 global DeselectMacro_Key := "^!+U"
 
-global RMB_LMB_SwitchInterval := 40
-global UseButton_Interval := 100
+global RMB_LMB_SwitchInterval := 15
+global UseButton_Interval := 10
 global RMB_locked := false
 global LMB_locked := false
 global Mounted := false
